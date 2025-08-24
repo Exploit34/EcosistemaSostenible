@@ -105,10 +105,9 @@ public class EcosistemaSostenible {
 
     public static int parseDireccion(String valor) {
         int d = Integer.parseInt(valor);
-        if (d < 1 || d > 4) {
-            throw new IllegalArgumentException("Dirección inválida.");
-        }
-        return d;
+        int[] valPermitidos = {1, 2, 3, 4};
+        for (int p : valPermitidos) if (p == d) return d;
+        throw new IllegalArgumentException("Dirección inválida 1, 2, 3, 4 (n es opcional)");
     }
 
     // mapa inicial
@@ -143,40 +142,53 @@ public class EcosistemaSostenible {
     // Reglas del juego
     public static int[][] aplicarReglas(int[][] grid, int gen, int dir) {
         int h = grid.length, w = grid[0].length;
-        int[][] nuevo = new int[h][w]; // matriz que guarda los datos
+        int[][] nuevo = new int[h][w];
 
-        // aplicacion de las reglas una por una
         for (int i = 0; i < h; i++) {
             for (int j = 0; j < w; j++) {
                 int cell = grid[i][j];
-                if (cell == 0) {
+
+                if (cell == 0) { // celda vacía
+                    // Árbol
                     if (contarDireccion(grid, i, j, 1, true) >= 2) {
-                        nuevo[i][j] = 1; // nace un arbol
-                    } else if (gen % 2 == 0 &&
-                            contarDireccion(grid, i, j, 2, true) >= 2 &&
-                            contarDireccion(grid, i, j, 1, false) >= 1 &&
-                            contarDireccion(grid, i, j, 3, false) >= 1) {
-                        nuevo[i][j] = 2; // nace un animal
-                    } else if (gen % 3 == 0 &&
-                            hayAguaFilaArriba(grid, i, j)) {
-                        nuevo[i][j] = 3; // nace agua
+                        nuevo[i][j] = 1;
+
+                        // Animal (solo en generaciones impares)
+                    } else if (gen % 2 == 1 &&
+                            contarDireccion(grid, i, j, 2, true) == 2 &&
+                            (contarDireccion(grid, i, j, 1, false) >= 1) &&
+                            (contarDireccion(grid, i, j, 3, false) >= 1)) {
+                        nuevo[i][j] = 2;
+
+                        // Agua (si hay agua arriba y gen múltiplo de 3)
+                    } else if (gen % 3 == 0 && hayAguaFilaArriba(grid, i, j)) {
+                        nuevo[i][j] = 3;
+
                     } else {
                         nuevo[i][j] = 0;
                     }
-                } else if (cell == 1) { // celda de arbol
-                    if (contarDireccion(grid, i, j, 3, false) >= 1) nuevo[i][j] = 1;
-                    else nuevo[i][j] = 0;
-                } else if (cell == 2) { // celda de animal
+
+                } else if (cell == 1) { // árbol
+                    if (contarDireccion(grid, i, j, 3, false) >= 1) {
+                        nuevo[i][j] = 1;
+                    } else {
+                        nuevo[i][j] = 0;
+                    }
+
+                } else if (cell == 2) { // animal
                     if (contarDireccion(grid, i, j, 1, false) >= 1 &&
-                            contarDireccion(grid, i, j, 3, false) >= 1) nuevo[i][j] = 2;
-                    else nuevo[i][j] = 0;
-                } else if (cell == 3) { // celda de agua
-                    nuevo[i][j] = 3; // el agua permanece intacta
+                            contarDireccion(grid, i, j, 3, false) >= 1) {
+                        nuevo[i][j] = 2;
+                    } else {
+                        nuevo[i][j] = 0;
+                    }
+
+                } else if (cell == 3) { // agua
+                    nuevo[i][j] = 3;
                 }
             }
         }
-
-        return nuevo; // retorna las reglas
+        return nuevo;
     }
 
     // movimiento de los animales
@@ -191,23 +203,29 @@ public class EcosistemaSostenible {
 
         for (int i = 0; i < h; i++) {
             for (int j = 0; j < w; j++) {
-                if (grid[i][j] == 2) {
+                if (grid[i][j] == 2) { // animal
                     int ni = i, nj = j;
-                    if (dir == 1) nj++;
-                    else if (dir == 2) ni++;
-                    else if (dir == 3) nj--;
-                    else if (dir == 4) ni--;
+                    if (dir == 1) nj++;      // derecha
+                    else if (dir == 2) ni++; // abajo
+                    else if (dir == 3) nj--; // izquierda
+                    else if (dir == 4) ni--; // arriba
 
                     if (ni >= 0 && ni < h && nj >= 0 && nj < w) {
-                        if (grid[ni][nj] == 0 || grid[ni][nj] == 1) {
+                        if (grid[ni][nj] == 0) { // destino vacío
                             nuevo[i][j] = 0;
                             nuevo[ni][nj] = 2;
+                        } else if (grid[ni][nj] == 1) { // destino árbol → lo consume
+                            nuevo[i][j] = 0;
+                            nuevo[ni][nj] = 2;
+                        } else if (grid[ni][nj] == 3) {
+                            // destino agua → no se mueve (queda en el mismo sitio)
+                            nuevo[i][j] = 2;
                         }
                     }
                 }
             }
         }
-        return nuevo; // retorna el movimiento 
+        return nuevo;
     }
 
     // direciones o vecinos
@@ -266,7 +284,7 @@ public class EcosistemaSostenible {
         System.out.printf("Generations = [%s]%s%n", generation != 0 ? generation : "No presente", generationError.isEmpty() ? "" : " -> " + generationError);
         System.out.printf("Speed = [%s]%s%n", speed != 0 ? speed + " ms" : "No presente", speedError.isEmpty() ? "" : " -> " + speedError);
         System.out.printf("Map = [%s]%s%n", !map.isEmpty() ? map : "No presente", mapaError.isEmpty() ? "" : " -> " + mapaError);
-        System.out.printf("Direccion = [%s]%s%n", direccion != 0 ? direccion : "No presente", direccionError.isEmpty() ? "" : " -> " + direccionError);
+        System.out.printf("Direccion = [%s]%s%n", direccion >= 0 ? direccion : "No presente", direccionError.isEmpty() ? "" : " -> " + direccionError);
     }
 
     // dibuja el mapa que se ve por consola
